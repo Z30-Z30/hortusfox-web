@@ -1,0 +1,38 @@
+name: Tidy UI - sync with upstream
+
+# Keeps this fork current: merges the original HortusFox main branch into the Tidy UI branch.
+# The overlay lives only in tidy/ and a few .github files, so the merge has nothing to conflict with.
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge upstream main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/danielbrendel/hortusfox-web.git
+          git fetch upstream main
+          before=$(git rev-parse HEAD)
+          git merge --no-edit upstream/main
+          if [ "$before" != "$(git rev-parse HEAD)" ]; then
+            echo "## Upstream changes to templates and frontend" >> "$GITHUB_STEP_SUMMARY"
+            echo "Review these when porting new upstream UI features into tidy/:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            git diff --stat "$before" HEAD -- app/views app/resources >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            git push origin HEAD
+          else
+            echo "Already up to date." >> "$GITHUB_STEP_SUMMARY"
+          fi
